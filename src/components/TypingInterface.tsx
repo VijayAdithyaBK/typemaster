@@ -82,18 +82,11 @@ export default function TypingInterface() {
     if (startTime && !isFinished) {
       interval = window.setInterval(() => {
         const timeElapsed = (Date.now() - startTime) / 1000;
-        const words = input.length / 5;
-        const currentWpm = Math.round(words / (timeElapsed / 60)) || 0;
-        
-        const chars = input.split("");
-        const correct = chars.filter((c, i) => c === currentNovel.text[i]).length;
-        const acc = Math.round((correct / chars.length) * 100) || 100;
-        
-        setStats({ wpm: currentWpm, accuracy: acc, time: Math.round(timeElapsed) });
+        setStats(prev => ({ ...prev, time: Math.round(timeElapsed) }));
       }, 1000);
     }
     return () => clearInterval(interval);
-  }, [startTime, isFinished, input, currentNovel.text]);
+  }, [startTime, isFinished]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (isFinished || activeOverlay) return;
@@ -101,16 +94,32 @@ export default function TypingInterface() {
     const { value } = e.target;
     if (!startTime && value.length > 0) setStartTime(Date.now());
     
+    // Play sound
     if (value.length > input.length && settings.sound) playClick();
+
+    // Calculate accuracy and WPM immediately
+    const timeElapsed = startTime ? (Date.now() - startTime) / 1000 : 0.001;
+    const words = value.length / 5;
+    const currentWpm = Math.round(words / (timeElapsed / 60)) || 0;
+    
+    const chars = value.split("");
+    const correct = chars.filter((c, i) => c === currentNovel.text[i]).length;
+    const currentAcc = Math.round((correct / chars.length) * 100) || 100;
+
     setInput(value);
+    setStats({
+      wpm: currentWpm,
+      accuracy: currentAcc,
+      time: Math.round(timeElapsed)
+    });
 
     if (value.length >= currentNovel.text.length) {
       setIsFinished(true);
       if (settings.sound) playDing();
       const finalResult = {
-        wpm: stats.wpm,
-        accuracy: stats.accuracy,
-        time: stats.time,
+        wpm: currentWpm,
+        accuracy: currentAcc,
+        time: Math.round(timeElapsed),
         source: currentNovel.source,
         date: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
